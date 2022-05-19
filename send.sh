@@ -10,6 +10,7 @@ if [ -z "$WEBHOOK_URL" ] || [ -z "$BUILD_STATUS" ]; then
 	exit 0
 fi
 
+
 case "$BUILD_STATUS" in
 	[Ss]uccess)
 		STATUS="passed"
@@ -28,8 +29,6 @@ case "$BUILD_STATUS" in
 		exit 0
 		;;
 esac
-
-STATUS_MESSAGE="Workflow $GITHUB_WORKFLOW ($GITHUB_EVENT_NAME) $STATUS for $GITHUB_REPOSITORY"
 
 AUTHOR_NAME=$( git -C "$GITHUB_WORKSPACE" log -1 "$GITHUB_SHA" --pretty="%aN" )
 COMMITTER_NAME=$( git -C "$GITHUB_WORKSPACE" log -1 "$GITHUB_SHA" --pretty="%cN" )
@@ -64,42 +63,14 @@ else
 	BRANCH_URL="[\`$_BRANCH\`](https://github.com/$GITHUB_REPOSITORY/tree/$_BRANCH)"
 fi
 
-TIMESTAMP=$( TZ='' printf "%(%FT%TZ)T" )
+
+STATUS_MESSAGE="Workflow $GITHUB_WORKFLOW ($GITHUB_EVENT_NAME) $STATUS for $GITHUB_REPOSITORY.\nCOMMIT: $TITLE\nDIFF: $CONTENT_URL\nBRANCH: $BRANCH_URL"
 
 PAYLOAD_DATA=$(
 cat <<EOF
 {
-	"username": "GitHub Actions",
-	"avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-	"embeds": [
-		{
-			"title": $TITLE,
-			"type": "rich",
-			"description": $DESCRIPTION,
-			"url": "$CONTENT_URL",
-			"timestamp": "$TIMESTAMP",
-			"color": $STATUS_COLOR,
-			"author": {
-				"name": "$STATUS_MESSAGE",
-				"url": "$STATUS_URL"
-			},
-			"fields": [
-				{
-					"name": "Commit",
-					"value": "$COMMIT_URL",
-					"inline": true
-				},
-				{
-					"name": "Branch",
-					"value": "$BRANCH_URL",
-					"inline": true
-				}
-			]
-		}
-	]
-}
+        "msg": $STATUS_MESSAGE,
 EOF
 )
 
-echo -n "Sending status to Discord..."
 curl -sf -H "Content-Type: application/json" -d "$PAYLOAD_DATA" "$WEBHOOK_URL" && echo "success!" || echo "failure!"
